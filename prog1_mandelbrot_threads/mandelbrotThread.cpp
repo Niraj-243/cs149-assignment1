@@ -28,14 +28,36 @@ extern void mandelbrotSerial(
 //
 // Thread entrypoint.
 void workerThreadStart(WorkerArgs * const args) {
-
+    double start = CycleTimer::currentSeconds();
     // TODO FOR CS149 STUDENTS: Implement the body of the worker
     // thread here. Each thread should make a call to mandelbrotSerial()
     // to compute a part of the output image.  For example, in a
     // program that uses two threads, thread 0 could compute the top
     // half of the image and thread 1 could compute the bottom half.
+    int x0=args->x0, x1 = args->x1, y0 = args->y0, y1 = args->y1, width = args->width, height = args->height;
+    // int numRows = args->height;
+    int *output = args->output;
+    int maxIterations = 256;
+    int numThreads = args->numThreads;
+    int threadId = args->threadId;
 
-    printf("Hello world from thread %d\n", args->threadId);
+    // int gap = height/numThreads;
+    // int startRow = threadId*(gap);
+    // int numRows = gap;
+
+    int startRow = threadId * height / numThreads;
+    int endRow   = (threadId + 1) * height / numThreads;
+    int numRows  = endRow - startRow;
+
+    for(int i=0;i<height;i+=numThreads){
+        if(i+threadId < height)
+        mandelbrotSerial(x0,y0,x1,y1,width,height,i+threadId,1,maxIterations,output);
+    }
+
+    // mandelbrotSerial(x0,y0,x1,y1,width,height,startRow,numRows,maxIterations,output);
+    double end = CycleTimer::currentSeconds();
+    // printf("thread %d finished in %.3f sedonds\n",threadId,end-start);
+    // printf("Hello world from thread %d\n", args->threadId);
 }
 
 //
