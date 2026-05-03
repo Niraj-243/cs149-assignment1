@@ -34,7 +34,7 @@ void workerThreadStart(WorkerArgs * const args) {
     // to compute a part of the output image.  For example, in a
     // program that uses two threads, thread 0 could compute the top
     // half of the image and thread 1 could compute the bottom half.
-    int x0=args->x0, x1 = args->x1, y0 = args->y0, y1 = args->y1, width = args->width, height = args->height;
+    float x0=args->x0, x1 = args->x1, y0 = args->y0, y1 = args->y1, width = args->width, height = args->height;
     // int numRows = args->height;
     int *output = args->output;
     int maxIterations = 256;
