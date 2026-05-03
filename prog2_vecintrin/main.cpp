@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <iostream>
 #include <algorithm>
 #include <getopt.h>
 #include <math.h>
@@ -189,7 +190,8 @@ void absVector(float* values, float* output, int N) {
   for (int i=0; i<N; i+=VECTOR_WIDTH) {
 
     // All ones
-    maskAll = _cs149_init_ones();
+    // maskAll = _cs149_init_ones();
+    maskAll = _cs149_init_ones(min(VECTOR_WIDTH, N - i));
 
     // All zeros
     maskIsNegative = _cs149_init_ones(0);
@@ -240,6 +242,13 @@ void clampedExpSerial(float* values, int* exponents, float* output, int N) {
   }
 }
 
+
+template <typename T>
+void print(T &v){
+  for(auto &x: v.value) cout<<x<<" ";
+  cout<<"\n";
+}
+
 void clampedExpVector(float* values, int* exponents, float* output, int N) {
 
   //
@@ -249,8 +258,40 @@ void clampedExpVector(float* values, int* exponents, float* output, int N) {
   // Your solution should work for any value of
   // N and VECTOR_WIDTH, not just when VECTOR_WIDTH divides N
   //
+  __cs149_vec_float x;
+  __cs149_vec_float result;
+  __cs149_vec_int exp;
+  float safe_val = 9.999999f;
+  __cs149_vec_float ten = _cs149_vset_float(safe_val);
+  __cs149_mask maskAll, maskIsSafe, maskIsNotNegative;
+
+  for(int i=0;i<N;i+=VECTOR_WIDTH){
+    // Load vector of values from contiguous memory addresses
+
+    // All ones
+    // maskAll = _cs149_init_ones();
+    maskAll = _cs149_init_ones(min(VECTOR_WIDTH, N - i));
+    // All zeros
+    maskIsSafe = _cs149_init_ones(0);
+    
+    _cs149_vload_float(x, values+i, maskAll);               // x = values[i];
+    _cs149_vload_int(exp,exponents+i,maskAll);
+    _cs149_exp_float(x,exp,result);
+    // print(x);
+    // print(result);
+
+    // Set mask according to predicate
+    _cs149_vlt_float(maskIsSafe, result, ten, maskAll);     // if (x < 9.9999) 
+    _cs149_ceil_float(result,maskIsSafe,safe_val);
+
+    // Write results back to memory
+    _cs149_vstore_float(output+i, result, maskAll);
+
+  }
   
 }
+
+
 
 // returns the sum of all elements in values
 float arraySumSerial(float* values, int N) {
@@ -266,15 +307,27 @@ float arraySumSerial(float* values, int N) {
 // You can assume N is a multiple of VECTOR_WIDTH
 // You can assume VECTOR_WIDTH is a power of 2
 float arraySumVector(float* values, int N) {
-  
-  //
-  // CS149 STUDENTS TODO: Implement your vectorized version of arraySumSerial here
-  //
-  
-  for (int i=0; i<N; i+=VECTOR_WIDTH) {
 
-  }
+    __cs149_vec_float vecSum;
+    __cs149_vec_float vecVal;
+    __cs149_mask maskAll = _cs149_init_ones();
 
-  return 0.0;
+    // initialize vector sum to 0
+    _cs149_vset_float(vecSum, 0.0f, maskAll);
+
+    for (int i = 0; i < N; i += VECTOR_WIDTH) {
+
+        _cs149_vload_float(vecVal, values + i, maskAll);
+
+        _cs149_vadd_float(vecSum, vecSum, vecVal, maskAll);
+    }
+
+    // horizontal add all lanes into final scalar
+    float result = 0.0f;
+    for (int i = 0; i < VECTOR_WIDTH; i++) {
+        result += vecSum.value[i];
+    }
+
+    return result;
 }
 

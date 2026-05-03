@@ -1,5 +1,6 @@
 #include "CS149intrin.h"
 #include "logger.h"
+#include <iostream>
 
 //******************
 //* Implementation *
@@ -103,6 +104,32 @@ template void _cs149_vload<int>(__cs149_vec_int &dest, int* src, __cs149_mask &m
 
 void _cs149_vload_float(__cs149_vec_float &dest, float* src, __cs149_mask &mask) { _cs149_vload<float>(dest, src, mask); }
 void _cs149_vload_int(__cs149_vec_int &dest, int* src, __cs149_mask &mask) { _cs149_vload<int>(dest, src, mask); }
+
+
+template <typename T>
+void _cs149_exp(__cs149_vec<T> &val, __cs149_vec<int> &exp, __cs149_vec<T> &dest) {
+    for (int i = 0; i < VECTOR_WIDTH; i++) {
+        dest.value[i] = val.value[i];
+        for(int j=1;j<exp.value[i];j++){
+          dest.value[i] *= val.value[i];
+        }
+        // cout<<"val: "<<val.value[i]<<" exp: "<<exp.value[i]<<" result: "<<dest.value[i]<<"\n";
+    }
+    
+}
+void _cs149_exp_float(__cs149_vec_float &val,__cs149_vec_int &exp,__cs149_vec_float &output){
+  _cs149_exp<float>(val,exp,output);
+}
+
+template<typename T>
+void _cs149_ceil(__cs149_vec<T> &val, __cs149_mask &mask,T &safe_val){
+  for(int i=0;i<VECTOR_WIDTH;i++){
+    val.value[i] = (!mask.value[i]) ? safe_val : val.value[i];
+  }
+}
+void _cs149_ceil_float(__cs149_vec_float &result,__cs149_mask &maskIsSafe,float safe_val){
+  _cs149_ceil(result,maskIsSafe,safe_val);
+}
 
 template <typename T>
 void _cs149_vstore(T* dest, __cs149_vec<T> &src, __cs149_mask &mask) {

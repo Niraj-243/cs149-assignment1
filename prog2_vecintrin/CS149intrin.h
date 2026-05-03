@@ -111,6 +111,14 @@ void _cs149_vlt_int(__cs149_mask &vecResult, __cs149_vec_int &veca, __cs149_vec_
 void _cs149_veq_float(__cs149_mask &vecResult, __cs149_vec_float &veca, __cs149_vec_float &vecb, __cs149_mask &mask);
 void _cs149_veq_int(__cs149_mask &vecResult, __cs149_vec_int &veca, __cs149_vec_int &vecb, __cs149_mask &mask);
 
+void _cs149_exp_float(__cs149_vec_float &val,__cs149_vec_int &exp,__cs149_vec_float &output);
+template <typename T>
+void _cs149_exp(__cs149_vec<T> &val, __cs149_vec<int> &exp, __cs149_vec<T> &dest);
+
+template<typename T>
+void _cs149_ceil(__cs149_vec<T> &val, __cs149_mask &mask,T &safe_val);
+void _cs149_ceil_float(__cs149_vec_float &result,__cs149_mask &maskIsSafe,float safe_val);
+
 // Adds up adjacent pairs of elements, so
 //  [0 1 2 3] -> [0+1 0+1 2+3 2+3]
 void _cs149_hadd_float(__cs149_vec_float &vecResult, __cs149_vec_float &vec);
