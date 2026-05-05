@@ -64,7 +64,7 @@ double dist(double *x, double *y, int nDim) {
 /**
  * Assigns each data point to its "closest" cluster centroid.
  */
-void computeAssignments(WorkerArgs *const args) {
+void computeAssignments_old(WorkerArgs *const args) {
   double *minDist = new double[args->M];
   
   // Initialize arrays
@@ -86,6 +86,54 @@ void computeAssignments(WorkerArgs *const args) {
   }
 
   delete[] minDist;
+}
+
+void compute_assignment_thread(WorkerArgs *args, int start, int end) {
+
+  for (int m = start; m < end; m++) {
+
+    double best = 1e30;
+    int best_k = -1;
+
+    for (int k = args->start; k < args->end; k++) {
+
+      double d = dist(&args->data[m * args->N],
+                      &args->clusterCentroids[k * args->N],
+                      args->N);
+
+      if (d < best) {
+        best = d;
+        best_k = k;
+      }
+    }
+
+    args->clusterAssignments[m] = best_k;
+  }
+}
+
+void computeAssignments(WorkerArgs *const args) {
+
+  // initialize assignments
+  for (int m = 0; m < args->M; m++) {
+    args->clusterAssignments[m] = -1;
+  }
+
+  int NUM_THREADS = 4;
+  std::thread Threads[NUM_THREADS];
+
+  int chunk = (args->M + NUM_THREADS - 1) / NUM_THREADS;
+
+  for (int t = 0; t < NUM_THREADS; t++) {
+
+    int start = t * chunk;
+    int end = std::min(args->M, start + chunk);
+
+    Threads[t] = std::thread(compute_assignment_thread, args, start, end);
+  }
+
+  for (int t = 0; t < NUM_THREADS; t++) {
+    Threads[t].join();
+  }
 }
 
 /**
@@ -177,6 +225,7 @@ void kMeansThread(double *data, double *clusterCentroids, int *clusterAssignment
   // Used to track convergence
   double *prevCost = new double[K];
   double *currCost = new double[K];
+  double startTime,endTime;
 
   // The WorkerArgs array is used to pass inputs to and return output from
   // functions.
@@ -206,10 +255,21 @@ void kMeansThread(double *data, double *clusterCentroids, int *clusterAssignment
     // Setup args struct
     args.start = 0;
     args.end = K;
-
+    printf("iter: %d \n",iter);
+    startTime = CycleTimer::currentSeconds();
     computeAssignments(&args);
+    endTime = CycleTimer::currentSeconds();
+    printf("\ttime taken for compute assignments: %f ms\n",(endTime-startTime)*1000);
+
+    startTime = CycleTimer::currentSeconds();
     computeCentroids(&args);
+    endTime = CycleTimer::currentSeconds();
+    printf("\ttime taken for compute centroids: %f ms\n",(endTime-startTime)*1000);
+
+    startTime = CycleTimer::currentSeconds();
     computeCost(&args);
+    endTime = CycleTimer::currentSeconds();
+    printf("\ttime taken for compute cost: %f ms\n",(endTime-startTime)*1000);
 
     iter++;
   }
