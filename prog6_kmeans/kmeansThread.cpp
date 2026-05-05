@@ -136,6 +136,82 @@ void computeAssignments(WorkerArgs *const args) {
   }
 }
 
+#include <arm_neon.h>
+
+void compute_assignment_thread_neon(WorkerArgs *args, int start, int end) {
+
+    int N = args->N;
+    int K = args->K;
+
+    for (int m = start; m < end; m += 4) {
+
+        float32x4_t bestDist = vdupq_n_f32(1e30f);
+        int32x4_t bestK = vdupq_n_s32(-1);
+
+        for (int k = 0; k < K; k++) {
+
+            float32x4_t dist = vdupq_n_f32(0.0f);
+
+            // --- manually unroll for N=3 (VERY IMPORTANT) ---
+            for (int n = 0; n < N; n++) {
+
+                float vals[4];
+
+                for (int i = 0; i < 4; i++) {
+                    int idx = m + i;
+                    vals[i] = (idx < args->M)
+                        ? (float)args->data[idx * N + n]
+                        : 0.0f;
+                }
+
+                float32x4_t dataVec = vld1q_f32(vals);
+
+                float c = (float)args->clusterCentroids[k * N + n];
+                float32x4_t centroidVec = vdupq_n_f32(c);
+
+                float32x4_t diff = vsubq_f32(dataVec, centroidVec);
+                dist = vmlaq_f32(dist, diff, diff); // dist += diff*diff
+            }
+
+            // compare dist < bestDist
+            uint32x4_t mask = vcltq_f32(dist, bestDist);
+
+            bestDist = vbslq_f32(mask, dist, bestDist);
+
+            int32x4_t kVec = vdupq_n_s32(k);
+            bestK = vbslq_s32(mask, kVec, bestK);
+        }
+
+        // store results
+        int out[4];
+        vst1q_s32(out, bestK);
+
+        for (int i = 0; i < 4; i++) {
+            if (m + i < args->M)
+                args->clusterAssignments[m + i] = out[i];
+        }
+    }
+}
+
+void computeAssignments_simd(WorkerArgs *args) {
+
+    int numThreads = std::thread::hardware_concurrency();
+    std::vector<std::thread> threads(numThreads);
+
+    int chunk = (args->M + numThreads - 1) / numThreads;
+
+    for (int t = 0; t < numThreads; t++) {
+        int start = t * chunk;
+        int end = std::min(args->M, start + chunk);
+
+        threads[t] = std::thread(
+            compute_assignment_thread_neon, args, start, end
+        );
+    }
+
+    for (auto &t : threads) t.join();
+}
+
 /**
  * Given the cluster assignments, computes the new centroid locations for
  * each cluster.
